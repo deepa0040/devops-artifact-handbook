@@ -1,0 +1,34 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+  pre_build:
+    commands:
+      - echo "Logging in to CodeArtifact repository $CA_REPO in domain $CA_DOMAIN"
+      - aws codeartifact login --tool npm --domain "$CA_DOMAIN" --domain-owner "$CA_DOMAIN_OWNER" --repository "$CA_REPO" --region "$AWS_REGION_ENV"
+      - echo "npm registry is now pointed at CodeArtifact:"
+      - npm config get registry
+  build:
+    commands:
+      - mkdir -p /tmp/app && cd /tmp/app
+      - echo '{ "name": "codeartifact-handson-app", "version": "1.0.0", "private": true }' > package.json
+      - echo "Installing lodash from CodeArtifact..."
+      - npm install lodash
+      - |
+        cat << 'EOF' > index.js
+        const _ = require('lodash');
+
+        const numbers = [4, 2, 8, 6, 1];
+
+        console.log('Original:', numbers);
+        console.log('Sorted:', _.sortBy(numbers));
+        console.log('Sum:', _.sum(numbers));
+        console.log('Package installed from CodeArtifact repo:', process.env.CA_REPO);
+        EOF
+      - echo "Running the Node.js app..."
+      - node index.js
+  post_build:
+    commands:
+      - echo "Build finished. Dependency was resolved through CodeArtifact repository $CA_REPO."
